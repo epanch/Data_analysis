@@ -1,0 +1,78 @@
+SELECT COUNT(DISTINCT u.id)
+FROM stackoverflow.users u
+JOIN stackoverflow.badges b ON u.id = b.user_id
+WHERE u.creation_date::date = b.creation_date::date
+__
+
+WITH cnt AS
+    (SELECT p.id,
+         COUNT(p.id) AS cnt_uniq
+     FROM stackoverflow.posts p
+     JOIN stackoverflow.users u ON p.user_id = u.id
+     JOIN stackoverflow.votes v ON p.id = v.post_id
+     WHERE u.display_name = 'Joel Coehoorn'
+     GROUP BY p.id
+     HAVING COUNT(v.id) >= 1)
+SELECT COUNT(cnt_uniq) 
+FROM cnt
+__
+
+SELECT *, 
+    ROW_NUMBER()OVER(ORDER BY id DESC) as rank
+FROM stackoverflow.vote_types
+ORDER BY id
+__
+
+SELECT user_id, COUNT(id) cnt,
+    DENSE_RANK()OVER(ORDER BY COUNT(id) DESC)
+FROM stackoverflow.badges
+WHERE creation_date :: date BETWEEN '2008-11-15' and '2008-12-15'
+GROUP BY user_id
+ORDER BY cnt DESC, user_id
+LIMIT 10
+__
+
+SELECT p.title, u.id, p.score,
+       ROUND(AVG(p.score)OVER(PARTITION BY u.id), 0)
+FROM stackoverflow.users u
+JOIN stackoverflow.posts p ON u.id = p.user_id
+WHERE p.title IS  NOT null AND p.score != 0;
+__
+
+SELECT title
+FROM stackoverflow.posts
+WHERE user_id IN (
+                  SELECT user_id
+                  FROM stackoverflow.badges
+                  GROUP BY user_id
+                  HAVING COUNT(id) >1000
+                  ) AND title IS NOT NULL;
+__
+
+SELECT id, views,
+    CASE 
+        WHEN views >= 350 THEN 1
+        WHEN views < 350 and views >= 100 THEN 2
+        WHEN views < 100 THEN 3
+    END AS group
+FROM stackoverflow.users
+WHERE views != 0 AND location LIKE '%United States%';
+__
+
+SELECT u.display_name, 
+    COUNT(DISTINCT u.id)
+FROM stackoverflow.users u
+JOIN stackoverflow.posts p ON u.id = p.user_id
+JOIN stackoverflow.post_types pt ON p.post_type_id = pt.id
+WHERE pt.type != 'Question' 
+AND p.creation_date::date BETWEEN (u.creation_date::date) and (u.creation_date::date + INTERVAL '1 month')
+GROUP BY u.display_name
+HAVING COUNT(p.id) > 100
+ORDER BY u.display_name;
+__
+
+SELECT user_id, creation_date, views_count,
+       SUM(views_count) OVER (PARTITION BY user_id ORDER BY creation_date)		
+FROM stackoverflow.posts;
+
+
